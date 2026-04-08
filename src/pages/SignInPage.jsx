@@ -15,18 +15,44 @@ function inpSt(touched, valid) {
 export default function SignInPage({ goto }) {
   const [role,  setRole]  = useState("Investor");
   const [email, setEmail] = useState("");
-  const [et,    setEt]    = useState(false);   // email touched
+  const [et,    setEt]    = useState(false);
   const [pwd,   setPwd]   = useState("");
   const [showP, setShowP] = useState(false);
   const [sub,   setSub]   = useState(false);
+  const [error, setError] = useState("");        // ← NEW
+  const [loading, setLoading] = useState(false); // ← NEW
 
   const ev    = validateEmail(email);
   const showE = et || sub;
 
-  function handleSubmit() {
+  async function handleSubmit() {           // ← NOW ASYNC
     setSub(true); setEt(true);
     if (!ev.ok || !pwd) return;
-    goto("dashboard");
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password: pwd })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        localStorage.setItem('token', data.data.token);
+        localStorage.setItem('user', JSON.stringify(data.data));
+        goto("dashboard");
+      } else {
+        setError(data.message || "Invalid email or password!");
+      }
+    } catch (err) {
+      setError("Cannot connect to server. Make sure backend is running!");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -80,10 +106,17 @@ export default function SignInPage({ goto }) {
             </div>
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <p style={{ color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",background:"#fef2f2",padding:"8px 12px",borderRadius:8 }}>
+              ⚠️ {error}
+            </p>
+          )}
+
           {/* Submit */}
-          <button onClick={handleSubmit}
-            style={{ width:"100%",padding:"14px",background:"linear-gradient(135deg,#6c63ff,#4f46e5)",border:"none",borderRadius:12,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"'Segoe UI',sans-serif",boxShadow:"0 4px 14px rgba(108,99,255,.3)",marginBottom:20 }}>
-            Sign In
+          <button onClick={handleSubmit} disabled={loading}
+            style={{ width:"100%",padding:"14px",background: loading ? "#a5b4fc" : "linear-gradient(135deg,#6c63ff,#4f46e5)",border:"none",borderRadius:12,color:"#fff",fontWeight:700,fontSize:15,cursor: loading ? "not-allowed" : "pointer",fontFamily:"'Segoe UI',sans-serif",boxShadow:"0 4px 14px rgba(108,99,255,.3)",marginBottom:20 }}>
+            {loading ? "Signing in..." : "Sign In"}
           </button>
 
           <p style={{ textAlign:"center",fontSize:13,color:"#9ca3af" }}>

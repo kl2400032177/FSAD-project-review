@@ -15,13 +15,15 @@ function inpSt(touched, valid) {
 export default function SignUpPage({ goto }) {
   const [role,  setRole]  = useState("Investor");
   const [name,  setName]  = useState("");
-  const [nt,    setNt]    = useState(false);  // name touched
+  const [nt,    setNt]    = useState(false);
   const [email, setEmail] = useState("");
-  const [et,    setEt]    = useState(false);  // email touched
+  const [et,    setEt]    = useState(false);
   const [pwd,   setPwd]   = useState("");
-  const [pt,    setPt]    = useState(false);  // password touched
+  const [pt,    setPt]    = useState(false);
   const [showP, setShowP] = useState(false);
   const [sub,   setSub]   = useState(false);
+  const [error, setError] = useState("");         // ← NEW
+  const [loading, setLoading] = useState(false);  // ← NEW
 
   const ev     = validateEmail(email);
   const nameOk = name.trim().length >= 2;
@@ -30,10 +32,37 @@ export default function SignUpPage({ goto }) {
   const showE  = et || sub;
   const showP2 = pt || sub;
 
-  function handleSubmit() {
+  async function handleSubmit() {              // ← NOW ASYNC
     setSub(true); setNt(true); setEt(true); setPt(true);
     if (!ev.ok || !nameOk || !pwdOk) return;
-    goto("dashboard");
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fullName: name,
+          email,
+          password: pwd,
+          role: role.toUpperCase()
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        goto("signin"); // go to login after successful registration
+      } else {
+        setError(data.message || "Registration failed. Try again!");
+      }
+    } catch (err) {
+      setError("Cannot connect to server. Make sure backend is running!");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -43,7 +72,6 @@ export default function SignUpPage({ goto }) {
         sub="Join thousands of investors making data-driven decisions with MFInsight."
       />
 
-      {/* Right panel */}
       <div style={{ flex:1,background:"#f5f6fa",display:"flex",alignItems:"center",justifyContent:"center",padding:"40px 5%" }}>
         <div style={{ width:"100%",maxWidth:440 }}>
           <h1 style={{ fontSize:30,fontWeight:800,color:"#0f0f1a",marginBottom:5,letterSpacing:"-0.5px" }}>Create account</h1>
@@ -105,10 +133,17 @@ export default function SignUpPage({ goto }) {
             />
           </div>
 
+          {/* Error Message */}
+          {error && (
+            <p style={{ color:"#ef4444",fontSize:13,marginBottom:12,textAlign:"center",background:"#fef2f2",padding:"8px 12px",borderRadius:8 }}>
+              ⚠️ {error}
+            </p>
+          )}
+
           {/* Submit */}
-          <button onClick={handleSubmit}
-            style={{ width:"100%",padding:"14px",background:"linear-gradient(135deg,#6c63ff,#4f46e5)",border:"none",borderRadius:12,color:"#fff",fontWeight:700,fontSize:15,cursor:"pointer",fontFamily:"'Segoe UI',sans-serif",boxShadow:"0 4px 14px rgba(108,99,255,.3)",marginBottom:20 }}>
-            Create Account
+          <button onClick={handleSubmit} disabled={loading}
+            style={{ width:"100%",padding:"14px",background: loading ? "#a5b4fc" : "linear-gradient(135deg,#6c63ff,#4f46e5)",border:"none",borderRadius:12,color:"#fff",fontWeight:700,fontSize:15,cursor: loading ? "not-allowed" : "pointer",fontFamily:"'Segoe UI',sans-serif",boxShadow:"0 4px 14px rgba(108,99,255,.3)",marginBottom:20 }}>
+            {loading ? "Creating account..." : "Create Account"}
           </button>
 
           <p style={{ textAlign:"center",fontSize:13,color:"#9ca3af" }}>
